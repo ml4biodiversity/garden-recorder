@@ -1,5 +1,10 @@
-{"data_extraction_model":"frontier_labs",
- "audio_path":"/home/zoodata/GaiaZoo/Congo_08Aug_15Aug/",
- "data_name":"gaia_zoo_congo_15aug25_data",
- "number_of_frames_per_fragment":10
+{"data_extraction_model":"audiomoth",
+ "audio_path":"/media/kakskyt/data/audioMoth/Vuurpad_march2026/",
+ "data_name":"vuurpad_march2026_data",
+ "start_time":"19-03-2026 10:00:00",
+ "number_of_frames_per_fragment":10,
+ "latitude": "50.495999",
+ "longitude": "5.455999",
+ "run_weather": 1,
+ "run_speech_detection": 1
  }

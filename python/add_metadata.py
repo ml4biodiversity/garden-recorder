@@ -9,10 +9,11 @@ Created on Sun Sep 28 08:50:11 2025
 import sys
 import os
 import json
-from specific_data_converters import FrontierLabs_BLT_slice_to_fragments, AudioMoth_slice_to_fragments
+from add_weather_data import add_weather_data
+from process_speech_MITAST import process_all_data as mit_ast_speech_rejection
 
 """
-    Main script for audio data preprocessing
+    Main script for Frontier data preprocessing
 """
 if __name__ == '__main__':
     if len(sys.argv)<2:
@@ -25,21 +26,22 @@ if __name__ == '__main__':
         exit(-1)        
         
     conf = json.load(open(cfile, "r"))
-    
-    if conf["data_extraction_model"]=="frontier_labs":
-        print(f"Running segmentation for {conf['data_name']} using {conf['data_extraction_model']}")
-        try:
-            FrontierLabs_BLT_slice_to_fragments(conf)
-        except:
-            print(f"{conf['data_name']} - failed")
-            exit()
-    if conf["data_extraction_model"]=="audiomoth":
-        print(f"Running segmentation for {conf['data_name']} using {conf['data_extraction_model']}")
-        try:
-            AudioMoth_slice_to_fragments(conf)
-        except:
-            print(f"{conf['data_name']} - failed")
-            exit()
 
-            
-    # to add species detection
+    if conf["run_weather"]==1:            
+        print(f"Adding weather data for {conf['data_name']}")
+        try:
+            add_weather_data(conf)
+        except:
+            print(f"{conf['data_name']} - failed")
+            exit()
+                    
+    if conf["run_speech_detection"]==1:    
+        print(f"Using MIT-AST to remove all speech in {conf['data_name']}")
+        try:
+            mit_ast_speech_rejection(conf)
+        except:
+            print(f"{conf['data_name']} - failed")
+            exit()    
+
+    if conf["run_birdnet"] == 1:
+        print(f"Adding BirdNet data for {conf['data_name']}")
