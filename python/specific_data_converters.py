@@ -11,21 +11,29 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import torchaudio as ta
+import torch
 from time import sleep 
 from pathlib import Path
+import soundfile
 import jpype
 # Enable Java imports
 import jpype.imports
-
 # Pull in types
 from jpype.types import *
+
+
+# Falling back to soundfile
+def read_wavfile(afile):
+    sig, fs = soundfile.read(afile)
+    return torch.Tensor(sig.T), fs
+
 
 # Processing for data from Frontier Labs Bar LT recorders
 def FrontierLabs_BLT_slice_to_fragments(conf):
     fl_path = conf["audio_path"]
-    data_name = conf["data_name"] # Descriptive name this data set 
-    number_of_frames = conf["number_of_frames_per_fragment"]  
-    
+    data_name = conf["data_name"] # Descriptive name this data set
+    number_of_frames = conf["number_of_frames_per_fragment"]
+
     # Load meta data
     files = list(Path(fl_path).rglob("*.wav"))
     meta = pd.read_csv(f"{fl_path}Reclog.csv",skiprows=1)
@@ -34,7 +42,7 @@ def FrontierLabs_BLT_slice_to_fragments(conf):
 
     # Setting up java access
     # os.environ['JAVA_HOME'] = '/home/aki/.jdks/openjdk-23.0.2/lib/server/'
-    os.environ['JAVA_HOME'] = '/home/P70088732/jdk-24.0.2/lib/server/'
+    # os.environ['JAVA_HOME'] = '/home/P70088732/jdk-24.0.2/lib/server/'
     # Launch the JVM (the jar should be moved here so that jype can see it)
     jpype.startJVM(classpath = ['./FieldAudioRecorder.jar'])
     
@@ -48,19 +56,23 @@ def FrontierLabs_BLT_slice_to_fragments(conf):
         f = meta.loc[c0]
         afile = fl_path + f.Filename.split(":")[1]
         try:
-            sig, fr = ta.load(afile)
+            sig, fr = read_wavfile(afile)
         except:
-            print(f"Reading file{afile} failed!!")
+            print(f"Reading file {afile} failed!!")
             continue
     
         if sig.shape[0]==2:
             stereo = True
-        else: 
+        else:
             stereo = False
+            sig = torch.stack([sig,sig],dim=0)
+
             
         sig = sig*32000
         st = 0
-        for c1 in range(np.int64(sig.shape[1]/B)):
+
+        num_blocks = np.int64(sig.shape[1] / B)
+        for c1 in range(num_blocks):
             time = f["time"]+pd.Timedelta(seconds=st/48000)
             timestr = "_"+str(time).replace("-","_").replace(":","_").replace(" ","_")
             s = sig[:,st:(st+B)].double().numpy() 

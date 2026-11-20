@@ -31,11 +31,14 @@ public class StoreData {
         createFolder(pathPrefix);
     }
     public String [] storeAudio(double[][] buffer, int bufferlength, int inp, int length,
-                                int channels) throws IOException {
-        LocalDateTime localTimeNow = LocalDateTime.now(ZoneId.systemDefault());
-        LocalDateTime startTime = localTimeNow.minusSeconds(length/FS);
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("_yyyy_MM_dd_H_mm_ss");
-        String timestamp = startTime.format(dateTimeFormatter);
+                                int channels, String timestamp) throws IOException {
+        if (timestamp == null){
+            LocalDateTime localTimeNow = LocalDateTime.now(ZoneId.systemDefault());
+            LocalDateTime startTime = localTimeNow.minusSeconds(length/FS);
+            DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("_yyyy_MM_dd_H_mm_ss");
+            timestamp = startTime.format(dateTimeFormatter);
+        }
+
         String pathName = pathPrefix+"/"+String.valueOf(folderCounter);
         createFolder(pathName);
 
