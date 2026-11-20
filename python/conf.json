@@ -1,10 +1,12 @@
-{"data_extraction_model":"audiomoth",
- "audio_path":"/media/kakskyt/data/audioMoth/Vuurpad_march2026/",
- "data_name":"vuurpad_march2026_data",
+{"data_extraction_model":"frontier_labs",
+ "audio_path":"/home/aki/data/RawFrontier/Mochengladbach/gladbach_parakeet/",
+ "data_name":"mochengladbach_sept2026",
  "start_time":"19-03-2026 10:00:00",
- "number_of_frames_per_fragment":10,
+ "number_of_frames_per_fragment":12,
  "latitude": "50.495999",
  "longitude": "5.455999",
+ "run_slicing": 0,
  "run_weather": 1,
- "run_speech_detection": 1
- }
+ "run_speech_detection": 1,
+ "run_speech_masking": 1
+}

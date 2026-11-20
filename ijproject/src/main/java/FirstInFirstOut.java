@@ -27,6 +27,7 @@ public class FirstInFirstOut {
         static {for (int c1=0; c1<Nbins; c1++){window[c1] = sin(c1*PI/Nbins);};}
 
     }
+    Boolean VERBOSE = false;
     int FS = 48000;
     int NUM_CHANNELS = 2;
     enum States {IDLE, BACKGROUND, RECORDING, STORING};
@@ -41,15 +42,15 @@ public class FirstInFirstOut {
     static int recording_counter = 0;
 
     public static double [] hellMeasures = new double[3];
-    public static double hellTh1 = 0.5;
+    public static double hellTh1 = 0.2;
     public static double hellTh2 = 0.5;
-    public static double hellTh3 = 0.5;
+    public static double hellTh3 = 0.2;
     public static double varianceGate = 20;
     public StoreData dataWriter = new StoreData();
     public RecordingLog log = new RecordingLog();
     static States previousState = States.IDLE;
     public void initialize(String pathName) throws IOException {
-            String globalPath = "C:\\Data\\er_path\\";
+            String globalPath = "er_path/";
             File filePath = new File(globalPath);
             if (!filePath.exists()) {filePath.mkdir();}
             Arrays.fill(buffer[0], 0.01);
@@ -57,6 +58,20 @@ public class FirstInFirstOut {
             dataWriter.setPathPrefix(globalPath+pathName);
             log.initializeJsonWriter(globalPath+pathName, pathName);
     }
+
+    public void initialize(String pathName, int rec_frames) throws IOException {
+        REC_FRAMES = rec_frames;
+        VERBOSE = true;
+        System.out.println("FieldRecorder.jar in verbose mode: Not printing out anything");
+        String globalPath = "er_path/";
+        File filePath = new File(globalPath);
+        if (!filePath.exists()) {filePath.mkdir();}
+        Arrays.fill(buffer[0], 0.01);
+        Arrays.fill(buffer[1], 0.01);
+        dataWriter.setPathPrefix(globalPath+pathName);
+        log.initializeJsonWriter(globalPath+pathName, pathName);
+    }
+
     public void close() throws IOException {
         log.closeJsonWriter();
     }
@@ -89,17 +104,21 @@ public class FirstInFirstOut {
        return out;
    }
 
-   public boolean signal_energy_variance(double [][] signal, int len, int channels){
+   // The version of the function used in the real-time interface
+   public boolean signal_energy_variance(double [][] signal, int len, int channels, String time_stamp) {
         double var0 = StatUtils.variance(signal[0]);
         double var1 = StatUtils.variance(signal[1]);
 
         double var = 0;
         if (var0>var1) var = 20*Math.log(var0+0.0001); else var=20*Math.log(var1+0.0001);
 
-       new Thread(() -> {
+       /*new Thread(() -> {
             double [] sig = getSignal(REC_FRAMES*len, 58*1024, 0);
             SignalModel.updateNoiseFloor(sig);
-        }).start();
+        }).start();*/
+       // Unthreading this for the python callable
+       double [] sig = getSignal(REC_FRAMES*len, 58*1024, 0);
+       SignalModel.updateNoiseFloor(sig);
 
         if (var>0.0) {
             NF.min_variance = 0.98 * NF.min_variance + 0.02 * var;
@@ -114,27 +133,27 @@ public class FirstInFirstOut {
             else {return false;}
             if (recording_counter==0){
                 state = States.STORING;
-                new Thread(() -> {
+                //new Thread(() -> { // Unthreading this for the python callable
                     String [] storedFileName = new String[0];
                     double [] sig0 = getSignal(REC_FRAMES*len, 48*1024, 0);
                     hellMeasures = SignalModel.computeTfFlatness(sig0);
-                    System.out.println(hellMeasures[0]+"|"+hellMeasures[1]+"|"+hellMeasures[2]);
+                    if (VERBOSE==false) System.out.println(hellMeasures[0]+"|"+hellMeasures[1]+"|"+hellMeasures[2]);
                     if ((hellMeasures[0]>hellTh1)|(hellMeasures[1]>hellTh2)|(hellMeasures[2]>hellTh3)) {
                         double [] measures = new double[]{hellMeasures[0], hellTh1, hellMeasures[1], hellTh2,
                                 hellMeasures[2], hellTh3};
                         try {
                             storedFileName = dataWriter.storeAudio(buffer, MAX_BUFFER_LENGTH,
-                                    inp, REC_FRAMES * len + len, channels);
+                                    inp, REC_FRAMES * len + len, channels, time_stamp);
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
                         log.audioRecordingEntry("test", storedFileName[1], storedFileName[0], measures);
                     }
                     else{
-                        System.out.println("Threshold not triggered. Did not store the data");
+                        if (!VERBOSE) System.out.println("Threshold not triggered. Did not store the data");
                     }
                     state = States.IDLE;
-                    }).start();
+                   // }).start(); Unthreading this for the python callable
             }
         }
        // System.out.println(state);
@@ -156,9 +175,30 @@ public class FirstInFirstOut {
                 inp = 0;
             }
         }
-        boolean triggered = signal_energy_variance(signal, length, channels);
+        boolean triggered = signal_energy_variance(signal, length, channels, null);
         if (state != previousState){
-            System.out.println(state);
+            if (!VERBOSE) System.out.println(state);
+            previousState = state;
+        }
+
+    }
+
+
+    /// The main function for writing data to the buffer
+    public void write_float_array_to_buffer(double [][] signal, int channels, String time_stamp) {
+        int length = signal[0].length;
+        // System.out.println(signal[0][0]);
+          for (int c1=0; c1<length; c1++){
+            for (int c2=0; c2<channels; c2++) {
+                buffer[c2][inp] = signal[c2][c1];
+            }
+            if (++inp>=MAX_BUFFER_LENGTH){
+                inp = 0;
+            }
+        }
+        boolean triggered = signal_energy_variance(signal, length, channels, time_stamp);
+        if (state != previousState){
+            if (!VERBOSE) System.out.println(state);
             previousState = state;
         }
 

@@ -1,5 +1,5 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="FieldAudioRecorder:jar">
+  <artifact type="jar" build-on-make="true" name="FieldAudioRecorder:jar">
     <output-path>$PROJECT_DIR$/out/artifacts/FieldAudioRecorder_jar</output-path>
     <root id="archive" name="FieldAudioRecorder.jar">
       <element id="module-output" name="FieldAudioRecorder" />
