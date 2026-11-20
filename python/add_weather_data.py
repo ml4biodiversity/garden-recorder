@@ -16,7 +16,6 @@ import requests
 import os
 from WeatherDataAccess import WeatherDataAccess
 
-
 COLUMNS = ['datetime', 'lat', 'lon', 'solarRadiationHigh', 'uvHigh', 'winddirAvg',
           'humidityAvg', 'tempAve','windspeedAvg', 'windgustHigh', 
           'dewptAvg', 'pressureMax','precipRate']
@@ -45,8 +44,7 @@ def turn_to_json(x):
 
 
 def add_weather_data(conf):
-# Path where the data from Frontier device is stored (physical - not a link) 
-    raw_data_path = conf["flpath"]   
+    # Path where the data from Frontier device is stored (physical - not a link)
     data_name = conf["data_name"] # Descriptive name this data set 
     number_of_frames = conf["number_of_frames_per_fragment"]  
     
@@ -78,7 +76,7 @@ def add_weather_data(conf):
     # Data dates
     wudates = cdf["wudate"].unique()
     
-    # Search for a nearest weather station availabe on those days
+    # Search for a nearest weather station available on those days
     keys = json.load(open("Wunderground_ah_secret_keys.json","r"))
     WDA = WeatherDataAccess(keys["api_key"])
     wdata = WDA.find_station(conf, wudates)
@@ -97,4 +95,51 @@ def add_weather_data(conf):
             
     cdf.to_excel(output_file)
         
-    
+""" 
+    The garden version
+"""
+def add_weather_data_garden(conf):
+    file = f"{conf["audio_path"]}/{conf["data_name"]}.json"
+    output_file = f"{conf["audio_path"]}/{conf["data_name"]}_metadata.xlsx"
+
+    # Do not overwrite if the file exists
+    if os.path.exists(output_file) == True:
+        print("The metadata file exists - overwriting.")
+
+    with open(file, "r") as f:
+        event_list = f.readlines()
+
+    event_list = [turn_to_json(x) for x in event_list[1:-1]]
+
+    df = pd.DataFrame(event_list[1:-1])
+    df = df.dropna(subset=["time"])
+    df["wudate"] = df["time"].apply(lambda x: x[:11].replace("_", "").split(".")[0])
+    df["datetime"] = df["time"].apply(lambda x: dt.datetime.strptime(x.split(".")[0], "_%Y_%m_%d_%H_%M_%S"))
+    cdf = df.copy()
+
+    for c in COLUMNS[1:]:
+        cdf.insert(len(df.columns), c, 0.0)
+
+    # Data dates
+    wudates = cdf["wudate"].unique()
+
+    # Search for a nearest weather station available on those days
+    keys = json.load(open("Wunderground_ah_secret_keys.json", "r"))
+    WDA = WeatherDataAccess(keys["api_key"])
+    wdata = WDA.find_station(conf, wudates)
+    print(f"Found a station with all days of data: {wdata['stationName']} ({wdata['stationID']})")
+
+    # Run for all unique days
+    for wud in wudates:
+        response = wdata["wdata"]["best"][wud]
+        wudf = selected_measures(response)
+
+        seldf = cdf[cdf["wudate"] == wud].index
+
+        for s in seldf:
+            nearest = np.argmin(abs(wudf["datetime"] - cdf.loc[s, "datetime"]))
+            cdf.loc[s, COLUMNS[1:]] = wudf.loc[nearest, COLUMNS[1:]]
+
+    cdf.to_excel(output_file)
+
+

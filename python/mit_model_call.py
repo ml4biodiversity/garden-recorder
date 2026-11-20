@@ -38,10 +38,7 @@ class MIT_AST_model():
         predicted_label = self.model.config.id2label[predicted_class_ids]
         return predicted_label
 
-# classifier = MIT_AST_model()
-# afile = "../gardenTransformer/data/samples/bluetit_1.wav"
 
-# res = classifier.classify(afile)
 
 
 

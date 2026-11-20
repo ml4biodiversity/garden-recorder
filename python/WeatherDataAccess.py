@@ -39,7 +39,7 @@ class WeatherDataAccess():
                     weathers[stid][wd] = response
             # Found a full series!
             if (daycount==len(wudates)) & (resp["location"]["qcStatus"][c1]==1):
-                station = c1                
+                station = c1
                 weathers["best"] = weathers[stid] 
                 break
         return weathers, station        
@@ -75,7 +75,11 @@ class WeatherDataAccess():
         url = ["https://api.weather.com/v2/pws/history/all",
                 f"?stationId={STATION}&format=json&units=m&",
                 f"date={wud}&apiKey={API_KEY}&numericPrecision=decimal"]
-        response = requests.get("".join(url)).json()
+        try:
+            response = requests.get("".join(url)).json()
+        except:
+            print(f"Station {STATION} responded with {requests.get("".join(url))}")
+            return pd.DataFrame()
         wudf = pd.DataFrame(response["observations"])
         return wudf
     

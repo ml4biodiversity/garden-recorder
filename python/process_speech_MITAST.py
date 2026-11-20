@@ -29,24 +29,67 @@ def process_all_data(conf):
         print(f"MIT processing {mfile}")        
         data = pd.read_excel(mfile)    
         data = data.dropna(subset=["time"])
-        data["MIT_AST_label"] = ""    
-
+        data["MIT_AST_label"] = ""
                        
         for c1 in range(data.shape[0]):           
             try:
-                afile = fpath0+data.loc[c1, "filename"]
+                name = data.loc[c1, "filename"].replace("er_path/","")
+                if conf["data_extraction_model"]=="frontier_labs":
+                    afile = "er_path/"+name
+                else:
+                    afile = fpath+name
+
                 data.loc[c1, "MIT_AST_label"] = classifier.classify(afile)
-            except: 
-                data.loc[c1, "MIT_AST_label"] = "file_missing"
+            except:
+                if data.loc[c1, "MIT_AST_label"] is not None:
+                    data.loc[c1, "MIT_AST_label"] = "file_missing"
                 continue
-            if data.loc[c1, "MIT_AST_label"]=="Speech":
-                data.loc[c1, "MIT_AST_label"] = "speech_removed"
-                if os.path.isfile(afile):
-                    os.remove(afile)
-        newfile = mfile[:-5]+"_speechless.xlsx"
+            #if data.loc[c1, "MIT_AST_label"]=="Speech":
+            #    data.loc[c1, "MIT_AST_label"] = "speech_removed"
+            #    if os.path.isfile(afile):
+            #        os.remove(afile)
+        newfile = mfile[:-5]+".xlsx"
         data.to_excel(newfile)
-    
-        
+
+
+"""
+    The garden version
+"""
+
+def process_all_data_garden(conf):
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    fpath = conf["audio_path"]
+    classifier = MIT_AST_model()
+    classifier.model.to(DEVICE)
+
+    mfile = f"{conf["audio_path"]}/{conf["data_name"]}_metadata.xlsx"
+    print(f"MIT processing {mfile}")
+    data = pd.read_excel(mfile)
+    data = data.dropna(subset=["time"])
+    data["MIT_AST_label"] = ""
+
+    fpath = conf["audio_path"]
+    fpath = fpath[:fpath.rfind("/")]
+
+
+    for c1 in range(data.shape[0]):
+        try:
+            name = data.loc[c1, "filename"]
+            afile = fpath + "/" + name
+
+            data.loc[c1, "MIT_AST_label"] = classifier.classify(afile)
+        except:
+            if data.loc[c1, "MIT_AST_label"] is not None:
+                data.loc[c1, "MIT_AST_label"] = "file_missing"
+            continue
+        if data.loc[c1, "MIT_AST_label"]=="Speech":
+            data.loc[c1, "MIT_AST_label"] = "speech_removed"
+            if os.path.isfile(afile):
+                os.remove(afile)
+    newfile = mfile[:-5] + ".xlsx"
+    data.to_excel(newfile)
+
+
 if __name__ == '__main__':
     conf = json.load(open("conf.json", "r"))
     process_all_data(conf)
